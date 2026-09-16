@@ -27,7 +27,7 @@ def play_roulette():
     def send_command(cmd):
         process.stdin.write(f"{cmd}\n")
         process.stdin.flush()
-        time.sleep(0.8)
+        time.sleep(1)
 
     try:
         buffer = ""
