@@ -36,13 +36,11 @@ def money_xchange():
     print(f"{pettis}x5000:{dvoutis}x2000:{tisic}x1000:{petset}x500:{dveste}x200:{sto}x100:{pade}x50:{dvacet}x20:{deset}x10:{pet}x5:{dva}x2:{jedna}x1")
 
 def money_xchange_v2():
-i = int(input("Zadej penize: "))
-money = [5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1]
-for item in money:
-    if i < 0:
-        continue
-    count = i // item
-    i = i - (item*count)
-    print(f"{item}:{count}x")  
+    i = int(input("Zadej penize: "))
+    money = [5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1]
+    for item in money:
+        count = i // item
+        i = i - (item*count)
+        print(f"{item}:{count}x")  
 if __name__ == "__main__":
-    
+    money_xchange_v2()
