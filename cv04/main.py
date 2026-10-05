@@ -34,13 +34,15 @@ def factorial_recursion(number):
     return factorial_recursion(number - 1) * number
 
 def fibbonachi(number):
-    num1 = 0
-    num2 = 1
+    prev = 1
+    actual = 1
+    if number < 2:
+        return
     for _ in range(number):
-        num3 = num1 + num2
-        num2 = num1
-        num1 = num3
-    return num3
+        tmp = prev + actual
+        actual = prev
+        prev = tmp
+    return actual
         
 
 def fibbonachi_recursion(number):
