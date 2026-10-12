@@ -41,10 +41,10 @@ def minimum():
         n = int(input("Cislo: "))
     print(f"min: {min}")
 #3.3
-def sum():
+def soucet():
     n = int(input("Cislo: "))
     sum = (n*(n+1)) / 2
-    print(sum)  
+    print(soucet)  
 #3.4
 def even_nums():
     n = int(input("Cislo: "))
@@ -107,7 +107,21 @@ def pythagor():
     a = int(input("Cislo: "))
     b = int(input("Cislo: "))
     print( ((a ** 2) + (b ** 2)) ** 0.5)
-
-
+#7.3
+def prumer():
+    N = int(input("Pocet cisel: "))
+    nums = []
+    for i in range(N):
+        number = int(input(f"Zadej {i+1}. cislo:  "))
+        nums.append(number)
+    print(sum(nums) / len(nums))
+#7.5
+def pocetcifer():
+    N = int(input("Pocet cisel: "))
+    lst = []
+    while N != 0:
+        lst.append(N % 10)
+        N = N // 10
+    print(len(lst)) # 7.6 print(sum(lst)) 7.7 print(lst)
 if __name__ == "__main__":
-    pythagor()
+    pocetcifer()
