@@ -140,5 +140,78 @@ def NSN():
     a = int(input("Cislo: "))
     b = int(input("Cislo: "))
     print(+(a * b) / NSD_NSN(a,b))
+#11.1
+def delka_retezce():
+    text = (input("Cislo: "))
+    print(len(text))
+#11.3 
+def palindrom():
+    text = (input("Cislo: "))
+    pal = text[::-1]
+    if pal == text:
+        print("Palindrom")
+    else:
+        print("Neny palindrom")
+
+#11.4
+def samohlasky():
+    pocet = 0
+    text = (input("Texst: "))
+    lst = ["a","e","i","o","u","y"]
+    for i in range(len(text)):
+        for j in range(len(lst)):
+            if text[i] == lst[j]:
+                pocet = pocet + 1
+    print(pocet)
+
+#11.5
+def znaky():
+    counter = 0
+    text = (input("Texst: "))
+    dct = {}
+    for i in text:
+        if i in dct.keys():
+            counter = dct[1]
+        else:
+            dct[i] = 1
+    print(dct)
+
+# 12.1
+def soucet_seznam():
+    N = (input("Cislo: "))
+    numbers = []
+    for i in N.split():
+        numbers.append(int(i))
+    print(sum(numbers))
+# 12.3
+def otocit_seznam():
+    N = (input("Cislo: "))
+    numbers = []
+    for i in N.split():
+        numbers.append(int(i))
+    print(numbers[::-1])
+#12.4
+def duplicita():
+    N = (input("Cislo: "))
+    number = []
+    for i in N.split():
+        a = int(i)
+        if a not in number:
+            number.append(a)
+    print(number)
+#12.2
+def maxmin():
+    N = (input("Cislo: "))
+    number = []
+    min = float("inf")
+    max = float("-inf")
+    for i in N.split():
+        a = int(i)
+        if a > max:
+            max = a
+        if a < min:
+            min = a
+            
+    print(f"amx {max} min {min}")
 if __name__ == "__main__":
-    NSD()
+    maxmin()
