@@ -128,11 +128,17 @@ def NSD():
     a = int(input("Cislo: "))
     b = int(input("Cislo: "))  
     r = 1
-    while r != 0:
-        r = a % b
-        a = b
-        b = r
-
+    while b != 0:
+        a, b = b, a % b
     print(a)
+def NSD_NSN(a,b):
+    while b != 0:
+        a, b = b, a % b
+    return(a)
+#9.2
+def NSN():
+    a = int(input("Cislo: "))
+    b = int(input("Cislo: "))
+    print(+(a * b) / NSD_NSN(a,b))
 if __name__ == "__main__":
     NSD()
