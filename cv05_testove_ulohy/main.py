@@ -123,5 +123,16 @@ def pocetcifer():
         lst.append(N % 10)
         N = N // 10
     print(len(lst)) # 7.6 print(sum(lst)) 7.7 print(lst)
+#9.1
+def NSD():
+    a = int(input("Cislo: "))
+    b = int(input("Cislo: "))  
+    r = 1
+    while r != 0:
+        r = a % b
+        a = b
+        b = r
+
+    print(a)
 if __name__ == "__main__":
-    pocetcifer()
+    NSD()
