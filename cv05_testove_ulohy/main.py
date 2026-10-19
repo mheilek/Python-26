@@ -211,7 +211,42 @@ def maxmin():
             max = a
         if a < min:
             min = a
-            
     print(f"amx {max} min {min}")
+            
+#13.1
+def lin_search():
+    x = int(input("Pocet cisel: "))
+    number = []
+    for i in range(x):
+        i = int(input("Cislo: "))
+        number.append(i)
+    p = int(input("Cislo hledane: "))
+    for index, num in enumerate(number):
+        if num == p:
+            print(f"Nachazi se na {index} indexu")
+            return
+    print("NEnachazi")
+#13.2
+def binarysearch():
+    search = 10
+    lst = [6,1,2,3,4,5,5,6,8,4,5,6]
+    lst.sort()
+    left = 0
+    right = len(lst) - 1
+    middle = (left + right) // 2
+    while right - left != 1:
+        middle = (left + right) // 2
+        if lst[middle] == search:
+            print("Nalezeno")
+            return 1
+        if lst[middle] > search:
+            right = middle
+        if lst[middle] < search:
+            left = middle
+    if lst[0] == search or lst[-1] == search:
+        print("Nalezeno")
+        return 1
+    print("Nenalezeno")   
+            
 if __name__ == "__main__":
-    maxmin()
+    binarysearch()
