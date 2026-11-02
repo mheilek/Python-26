@@ -76,4 +76,5 @@ def multiply(matrix_a, matrix_b):
             sum = 0
             for l in range(nA):
                 sum += matrix_a[i][l] * matrix_b[l][i]
-            result[mA][nB] = sum
+            result[i][j] = sum
+    return result

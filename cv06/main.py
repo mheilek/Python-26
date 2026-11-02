@@ -1,4 +1,4 @@
-from matrix import plus, zeros, minus, eyes, size_of, format
+from matrix import plus, zeros, minus, eyes, size_of, format, multiply
 
 if __name__ == "__main__":
     matrix_a = [
@@ -13,4 +13,4 @@ if __name__ == "__main__":
         [1, 1, 1]
     ]
     
-print(format(matrix_a))
+print(multiply(matrix_a, matrix_b))
