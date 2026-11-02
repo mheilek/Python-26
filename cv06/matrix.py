@@ -69,7 +69,7 @@ def multiply(matrix_a, matrix_b):
     mA, nA = size_of(matrix_a)   
     mB, nB = size_of(matrix_b)   
     if nA != nB:
-        print("Nejde to")
+        raise ValueError(f"Matrix A and B an not be multiply.")
     result = zeros(mA, nB)
     for i in range(mA):
         for j in range(nB):
