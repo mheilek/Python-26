@@ -12,6 +12,9 @@ def show(matrix):
     plt.colorbar()
     plt.show()
 
-matrix = load("C:\\Users\\matej.heilek\\Python-26\\cv06\\mario.png")
-print(matrix)
-show(matrix)
+def numpy_to_list(matrix):
+    return matrix.astype(int).tolist()
+
+def list_to_numpy(my_list):
+    return np.array(my_list, dtype=int)
+
