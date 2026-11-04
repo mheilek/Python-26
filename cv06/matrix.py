@@ -78,3 +78,32 @@ def multiply(matrix_a, matrix_b):
                 sum += matrix_a[i][l] * matrix_b[l][i]
             result[i][j] = sum
     return result
+
+def replace_row(matrix, vector, index):
+    m, n = size_of(matrix)
+    result = zeros(n, m)
+    for i in range(m):
+        for j in range(n):
+            if i == index:
+                result[i][j] = vector[j]
+            else:
+                result[i][j] = matrix[i][j]
+    return result
+
+def replace_collum(matrix, vector, index):
+    m, n = size_of(matrix)
+    result = zeros(n, m)
+    for i in range(m):
+        for j in range(n):
+            if j == index:
+                result[i][j] = vector[i]
+            else:
+                result[i][j] = matrix[i][j]
+    return result
+
+def determinant(matrix):
+    m, n = size_of(matrix)
+    if m == 2 and n == 2:
+        return matrix[0][0] * matrix [1][1] - matrix[0][1] * matrix[1][0]
+    else:
+        raise ValueError(f"Matice neni 2x2")
