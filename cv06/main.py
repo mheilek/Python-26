@@ -9,14 +9,23 @@ if __name__ == "__main__":
         [1, 0, -1]
     ]
     kernel2 = [
-        [1, 1, 1],
-        [0, 0, 0],
-        [-1, -1, -1]
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [-1, -1, -1, -1, -1]
     ]
     bluer = [
         [1/9, 1/9, 1/9],
         [1/9, 1/9, 1/9],
         [1/9, 1/9, 1/9]
+    ]
+    laplacial = [
+        [0, 0, -1, 0, 0],
+        [0, -1, -2, -1, 0],
+        [-1, -2, 12, -2, -1],
+        [0, -1, -2, -1, 0],
+        [0, 0, -1, 0, 0]
     ]
 
 
@@ -24,7 +33,7 @@ if __name__ == "__main__":
  
     img = numpy_to_list(image)
     new_img = convolution(img, kernel)
-    new_img_2 = convolution(img, kernel2)
+    new_img_2 = convolution(img, laplacial)
     new_img_3 = convolution(img, bluer)
-    np_img = list_to_numpy(new_img_3)
+    np_img = list_to_numpy(new_img_2)
     show(np_img)
