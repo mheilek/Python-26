@@ -51,7 +51,7 @@ def T(matrix):
 
 def apply(matrix, func):
     m, n = size_of(matrix)
-    result = zeros(n, m)
+    result = zeros(m, n)
     for i in range(m):
         for j in range(n):
             result[i][j] = func(matrix[i][j])
@@ -68,14 +68,14 @@ def multiply_const(matrix, const):
 def multiply(matrix_a, matrix_b):
     mA, nA = size_of(matrix_a)   
     mB, nB = size_of(matrix_b)   
-    if nA != nB:
+    if nA != mB:
         raise ValueError(f"Matrix A and B an not be multiply.")
     result = zeros(mA, nB)
     for i in range(mA):
         for j in range(nB):
             sum = 0
             for l in range(nA):
-                sum += matrix_a[i][l] * matrix_b[l][i]
+                sum += matrix_a[i][l] * matrix_b[l][j]
             result[i][j] = sum
     return result
 
