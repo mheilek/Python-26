@@ -29,7 +29,7 @@ if __name__ == "__main__":
     ]
 
 
-    image = load("C:\\Users\\matej.heilek\\Desktop\\Python-26-5\\cv06\\image.png")
+    image = load("C:\\Users\\matej.heilek\\Desktop\\Python-26\\cv06\\image.png")
  
     img = numpy_to_list(image)
     new_img = convolution(img, kernel)
