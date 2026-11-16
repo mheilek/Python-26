@@ -138,7 +138,7 @@ def load_training_data():
 
     training_data = []
 
-    paths = glob.glob("vycentrovane_train/*.png")
+    paths = glob.glob("projekt_cisla/vycentrovane_validation/*.png")
 
     for path in paths:
 
@@ -334,7 +334,7 @@ def evaluate_model():
 
     model, checkpoint = load_model()
 
-    paths = glob.glob("vycentrovane_validation/*.png")
+    paths = glob.glob("projekt_cisla/vycentrovane_train/*.png")
 
     if len(paths) == 0:
         print("Ve složce vycentrovane_test nebyly nalezeny žádné obrázky!")
@@ -438,47 +438,46 @@ def evaluate_model():
 
     print("================================")
 
+def train_checkpoint():
+    
+    training_data = load_training_data()
+#
+    if len(training_data) == 0:
+        print("Nebyly nalezeny žádné trénovací obrázky!")
+        exit()
+#
+    model, checkpoint = load_model()
+#
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=LEARNING_RATE
+    )
+#
+    start_epoch = 0
+#
+    if checkpoint is not None:
+#
+        optimizer.load_state_dict(
+            checkpoint["optimizer_state_dict"]
+        )
+#
+        start_epoch = checkpoint["epoch"]
+#
+        print(f"Pokračuji od epochy {start_epoch + 1}")
+#
+    model = train(
+        training_data=training_data,
+        epochs=200,
+        learning_rate=LEARNING_RATE,
+        model=model,
+        optimizer=optimizer,
+        start_epoch=start_epoch
+    )
+#
+    print("\n--- TRÉNOVÁNÍ DOKONČENO ---")
 # ==========================================
 # HLAVNÍ PROGRAM - TRÉNOVÁNÍ
 # ==========================================
 
 if __name__ == "__main__":
-
-  #  training_data = load_training_data()
-#
-  #  if len(training_data) == 0:
-  #      print("Nebyly nalezeny žádné trénovací obrázky!")
-  #      exit()
-#
-  #  model, checkpoint = load_model()
-#
-  #  optimizer = optim.Adam(
-  #      model.parameters(),
-  #      lr=LEARNING_RATE
-  #  )
-#
-  #  start_epoch = 0
-#
-  #  if checkpoint is not None:
-#
-  #      optimizer.load_state_dict(
-  #          checkpoint["optimizer_state_dict"]
-  #      )
-#
-  #      start_epoch = checkpoint["epoch"]
-#
-  #      print(f"Pokračuji od epochy {start_epoch + 1}")
-#
-  #  model = train(
-  #      training_data=training_data,
-  #      epochs=5,
-  #      learning_rate=LEARNING_RATE,
-  #      model=model,
-  #      optimizer=optimizer,
-  #      start_epoch=start_epoch
-  #  )
-#
-  #  print("\n--- TRÉNOVÁNÍ DOKONČENO ---")
-
-    # Automatické vyhodnocení
-    evaluate_model()
+   evaluate_model()
