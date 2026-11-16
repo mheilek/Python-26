@@ -138,7 +138,7 @@ def load_training_data():
 
     training_data = []
 
-    paths = glob.glob("projekt_cisla/vycentrovane_validation/*.png")
+    paths = glob.glob("vycentrovane_train/*.png")
 
     for path in paths:
 
@@ -334,7 +334,7 @@ def evaluate_model():
 
     model, checkpoint = load_model()
 
-    paths = glob.glob("projekt_cisla/vycentrovane_train/*.png")
+    paths = glob.glob("vycentrovane_validation/*.png")
 
     if len(paths) == 0:
         print("Ve složce vycentrovane_test nebyly nalezeny žádné obrázky!")
@@ -461,13 +461,12 @@ def train_checkpoint():
             checkpoint["optimizer_state_dict"]
         )
 #
-        start_epoch = checkpoint["epoch"]
 #
         print(f"Pokračuji od epochy {start_epoch + 1}")
 #
     model = train(
         training_data=training_data,
-        epochs=200,
+        epochs=10,
         learning_rate=LEARNING_RATE,
         model=model,
         optimizer=optimizer,
