@@ -22,11 +22,11 @@ from torchvision import transforms
 IMAGE_SIZE = 256
 OUTPUT_SIZE = 10
 
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 BATCH_SIZE = 8
 EPOCHS = 60
 
-WEIGHT_DECAY = 0.001
+WEIGHT_DECAY = 0.0001
 EARLY_STOPPING_PATIENCE = 10
 
 SEED = 42
@@ -60,8 +60,8 @@ train_transform = transforms.Compose([
 
     transforms.RandomAffine(
         degrees=3,
-        translate=(0.02, 0.02),
-        scale=(0.97, 1.03),
+        translate=(0.03, 0.03),
+        scale=(0.98, 1.02),
         shear=1,
         fill=1.0
     )
@@ -84,7 +84,7 @@ class ConvBlock(nn.Module):
             nn.Conv2d(
                 in_channels,
                 out_channels,
-                kernel_size=3,
+                kernel_size=5,
                 padding=1
             ),
 
