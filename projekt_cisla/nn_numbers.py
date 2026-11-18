@@ -1,13 +1,17 @@
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from torch.utils.data import Dataset, DataLoader, random_split
+
 from PIL import Image
 from tqdm import tqdm
 
+import numpy as np
 import glob
-import random
 import os
+import random
 
 
 # ==========================================
@@ -18,7 +22,15 @@ IMAGE_SIZE = 256
 
 OUTPUT_SIZE = 10
 
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0003
+
+BATCH_SIZE = 8
+
+EPOCHS = 20
+
+WEIGHT_DECAY = 0.0001
+
+EARLY_STOPPING_PATIENCE = 5
 
 DEVICE = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
@@ -28,7 +40,7 @@ print(f"Používané zařízení: {DEVICE}")
 
 
 # ==========================================
-# KONVOLUČNÍ NEURONOVÁ SÍŤ (CNN)
+# CNN MODEL
 # ==========================================
 
 class NeuralNetwork(nn.Module):
@@ -37,13 +49,10 @@ class NeuralNetwork(nn.Module):
 
         super().__init__()
 
-        # Konvoluční vrstvy
         self.conv_layers = nn.Sequential(
 
-            # 1 -> 32 filtrů
             nn.Conv2d(
-                in_channels=1,
-                out_channels=32,
+                1, 32,
                 kernel_size=3,
                 padding=1
             ),
@@ -52,10 +61,8 @@ class NeuralNetwork(nn.Module):
 
             nn.MaxPool2d(2),
 
-            # 32 -> 64 filtrů
             nn.Conv2d(
-                in_channels=32,
-                out_channels=64,
+                32, 64,
                 kernel_size=3,
                 padding=1
             ),
@@ -64,10 +71,8 @@ class NeuralNetwork(nn.Module):
 
             nn.MaxPool2d(2),
 
-            # 64 -> 128 filtrů
             nn.Conv2d(
-                in_channels=64,
-                out_channels=128,
+                64, 128,
                 kernel_size=3,
                 padding=1
             ),
@@ -78,20 +83,19 @@ class NeuralNetwork(nn.Module):
 
         )
 
-        # Klasifikační vrstvy
         self.classifier = nn.Sequential(
 
             nn.AdaptiveAvgPool2d((1, 1)),
 
             nn.Flatten(),
 
-            nn.Linear(128, 128),
+            nn.Linear(128, 256),
 
             nn.ReLU(),
 
             nn.Dropout(0.3),
 
-            nn.Linear(128, OUTPUT_SIZE)
+            nn.Linear(256, OUTPUT_SIZE)
 
         )
 
@@ -110,22 +114,24 @@ class NeuralNetwork(nn.Module):
 
 def load_image(path):
 
-    img = Image.open(path).convert("L")
+    with Image.open(path) as img:
 
-    img = img.resize((IMAGE_SIZE, IMAGE_SIZE))
+        img = img.convert("L")
 
-    pixels = list(img.getdata())
+        img = img.resize(
+            (IMAGE_SIZE, IMAGE_SIZE)
+        )
 
-    # Normalizace pixelů 0-1
-    pixels = [pixel / 255.0 for pixel in pixels]
+        pixels = np.array(
+            img,
+            dtype=np.float32
+        )
 
-    X = torch.tensor(
-        pixels,
-        dtype=torch.float32
-    )
+    X = torch.from_numpy(pixels)
 
-    # Rozměr: 1 x 256 x 256
-    X = X.reshape(1, IMAGE_SIZE, IMAGE_SIZE)
+    X = X.unsqueeze(0)
+
+    X.div_(255.0)
 
     return X
 
@@ -138,69 +144,190 @@ def load_training_data():
 
     training_data = []
 
-    paths = glob.glob("vycentrovane_train/*.png")
+    paths = glob.glob(
+        "vycentrovane_train/*.png"
+    )
 
     for path in paths:
 
         filename = os.path.basename(path)
 
-        # Label je číslo před podtržítkem
-        label = int(filename.split("_")[0])
+        try:
 
-        if label < 0 or label >= OUTPUT_SIZE:
-            print(f"Přeskakuji neplatný label: {filename}")
+            label = int(
+                filename.split("_")[0]
+            )
+
+        except ValueError:
+
+            print(f"Přeskakuji soubor: {filename}")
+
             continue
 
-        training_data.append((path, label))
+        if label < 0 or label >= OUTPUT_SIZE:
 
-    print(f"Nalezeno obrázků: {len(training_data)}")
+            print(f"Neplatný label: {filename}")
+
+            continue
+
+        training_data.append(
+            (path, label)
+        )
+
+    print(
+        f"Nalezeno obrázků: {len(training_data)}"
+    )
 
     return training_data
+
+
+# ==========================================
+# DATASET
+# ==========================================
+
+class NumberDataset(Dataset):
+
+    def __init__(self, data):
+
+        self.data = data
+
+    def __len__(self):
+
+        return len(self.data)
+
+    def __getitem__(self, index):
+
+        path, label = self.data[index]
+
+        X = load_image(path)
+
+        Y = torch.tensor(
+            label,
+            dtype=torch.long
+        )
+
+        return X, Y
+
+
+# ==========================================
+# UKLÁDÁNÍ CHECKPOINTU
+# ==========================================
+
+def save_model(
+    model,
+    optimizer,
+    scheduler,
+    epoch,
+    best_loss
+):
+
+    torch.save({
+
+        "model_state_dict": model.state_dict(),
+
+        "optimizer_state_dict": optimizer.state_dict(),
+
+        "scheduler_state_dict": scheduler.state_dict(),
+
+        "epoch": epoch,
+
+        "best_loss": best_loss
+
+    }, "model.pth")
+
+    print("Nejlepší checkpoint uložen!")
+
+
+# ==========================================
+# NAČÍTÁNÍ MODELU
+# ==========================================
+
+def load_model():
+
+    model = NeuralNetwork().to(DEVICE)
+
+    if not os.path.exists("model.pth"):
+
+        print("Vytvářím nový model!")
+
+        return model, None
+
+    checkpoint = torch.load(
+        "model.pth",
+        map_location=DEVICE,
+        weights_only=True
+    )
+
+    if "model_state_dict" in checkpoint:
+
+        model.load_state_dict(
+            checkpoint["model_state_dict"]
+        )
+
+        print("Předchozí model byl načten!")
+
+        return model, checkpoint
+
+    else:
+
+        model.load_state_dict(checkpoint)
+
+        print("Načten starý formát modelu.")
+
+        return model, None
 
 
 # ==========================================
 # TRÉNOVÁNÍ
 # ==========================================
 
-
-def train(training_data, epochs, learning_rate, model, optimizer=None, start_epoch=0):
+def train(
+    training_loader,
+    validation_loader,
+    model,
+    optimizer,
+    scheduler,
+    epochs,
+    start_epoch=0,
+    best_loss=float("inf")
+):
 
     criterion = nn.CrossEntropyLoss()
 
-    if optimizer is None:
+    epochs_without_improvement = 0
 
-        optimizer = optim.Adam(
-            model.parameters(),
-            lr=learning_rate
-        )
+    for epoch in range(
+        start_epoch,
+        start_epoch + epochs
+    ):
 
-    model.train()
+        # ==================================
+        # TRAINING
+        # ==================================
 
-    for epoch in range(start_epoch, start_epoch + epochs):
+        model.train()
 
-        print(f"\nEpoch {epoch + 1}")
+        train_loss = 0.0
 
-        random.shuffle(training_data)
+        train_correct = 0
 
-        total_loss = 0
+        train_total = 0
 
-        progress_bar = tqdm(
-            training_data,
+        progress = tqdm(
+            training_loader,
             desc=f"Training {epoch + 1}",
-            unit="image"
+            unit="batch"
         )
 
-        for path, label in progress_bar:
+        for X, Y in progress:
 
-            X = load_image(path).unsqueeze(0).to(DEVICE)
+            X = X.to(DEVICE)
 
-            Y = torch.tensor(
-                [label],
-                dtype=torch.long,
-                device=DEVICE
+            Y = Y.to(DEVICE)
+
+            optimizer.zero_grad(
+                set_to_none=True
             )
-
-            optimizer.zero_grad()
 
             output = model(X)
 
@@ -210,121 +337,327 @@ def train(training_data, epochs, learning_rate, model, optimizer=None, start_epo
 
             optimizer.step()
 
-            current_loss = loss.item()
-
-            total_loss += current_loss
-
-            progress_bar.set_postfix(
-                loss=f"{current_loss:.6f}",
-                avg_loss=f"{total_loss / (progress_bar.n + 1):.6f}",
-                image=os.path.basename(path)
+            train_loss += (
+                loss.item() * X.size(0)
             )
 
-        average_loss = total_loss / len(training_data)
+            predictions = output.argmax(dim=1)
+
+            train_correct += (
+                predictions == Y
+            ).sum().item()
+
+            train_total += Y.size(0)
+
+            progress.set_postfix(
+                loss=f"{loss.item():.5f}"
+            )
+
+        if train_total == 0:
+
+            print("Prázdný trénovací dataset!")
+
+            return model
+
+        train_loss /= train_total
+
+        train_accuracy = (
+            train_correct / train_total * 100
+        )
+
+        # ==================================
+        # VALIDATION
+        # ==================================
+
+        model.eval()
+
+        validation_loss = 0.0
+
+        validation_correct = 0
+
+        validation_total = 0
+
+        with torch.inference_mode():
+
+            for X, Y in validation_loader:
+
+                X = X.to(DEVICE)
+
+                Y = Y.to(DEVICE)
+
+                output = model(X)
+
+                loss = criterion(output, Y)
+
+                validation_loss += (
+                    loss.item() * X.size(0)
+                )
+
+                predictions = output.argmax(dim=1)
+
+                validation_correct += (
+                    predictions == Y
+                ).sum().item()
+
+                validation_total += Y.size(0)
+
+        if validation_total == 0:
+
+            print("Prázdný validační dataset!")
+
+            return model
+
+        validation_loss /= validation_total
+
+        validation_accuracy = (
+            validation_correct /
+            validation_total * 100
+        )
+
+        # ==================================
+        # SCHEDULER
+        # ==================================
+
+        scheduler.step(validation_loss)
+
+        current_lr = optimizer.param_groups[0]["lr"]
+
+        # ==================================
+        # VÝPIS VÝSLEDKŮ
+        # ==================================
+
+        print("\n================================")
+
+        print(f"EPOCH: {epoch + 1}")
+
+        print(f"Train Loss: {train_loss:.6f}")
+
+        print(f"Train Accuracy: {train_accuracy:.2f}%")
 
         print(
-            f"\nEpoch {epoch + 1}, "
-            f"Average Loss: {average_loss:.6f}"
+            f"Validation Loss: {validation_loss:.6f}"
         )
 
-        # Uložení po každé epoše
-        save_model(model, optimizer, epoch + 1)
-
-    return model
-# ==========================================
-# UKLÁDÁNÍ MODELU
-# ==========================================
-
-def save_model(model, optimizer, epoch):
-
-    torch.save({
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-        "epoch": epoch
-    }, "model.pth")
-
-    print("Checkpoint uložen!")
-
-# ==========================================
-# NAČÍTÁNÍ MODELU
-# ==========================================
-
-
-def load_model():
-
-    model = NeuralNetwork().to(DEVICE)
-
-    if os.path.exists("model.pth"):
-
-        checkpoint = torch.load(
-            "model.pth",
-            map_location=DEVICE,
-            weights_only=True
+        print(
+            f"Validation Accuracy: "
+            f"{validation_accuracy:.2f}%"
         )
 
-        # Kontrola, zda jde o nový formát checkpointu
-        if "model_state_dict" in checkpoint:
+        print(f"Learning Rate: {current_lr:.8f}")
 
-            model.load_state_dict(
-                checkpoint["model_state_dict"]
+        print("================================")
+
+        # ==================================
+        # UKLÁDÁNÍ NEJLEPŠÍHO MODELU
+        # ==================================
+
+        if validation_loss < best_loss:
+
+            best_loss = validation_loss
+
+            epochs_without_improvement = 0
+
+            save_model(
+                model,
+                optimizer,
+                scheduler,
+                epoch + 1,
+                best_loss
             )
 
-            print("Předchozí model byl načten!")
-
-            return model, checkpoint
+            print("Nový nejlepší model!")
 
         else:
 
-            # Starý formát obsahující pouze váhy
-            model.load_state_dict(checkpoint)
+            epochs_without_improvement += 1
 
-            print("Načten starý formát modelu.")
-            print("Optimalizátor a epocha budou inicializovány od začátku.")
+            print(
+                f"Bez zlepšení: "
+                f"{epochs_without_improvement}/"
+                f"{EARLY_STOPPING_PATIENCE}"
+            )
 
-            return model, None
+        # ==================================
+        # EARLY STOPPING
+        # ==================================
 
-    else:
+        if (
+            epochs_without_improvement
+            >= EARLY_STOPPING_PATIENCE
+        ):
 
-        print("Vytvářím nový model!")
+            print("\nEarly stopping aktivován!")
 
-        return model, None
+            break
 
+    return model
 
 
 # ==========================================
-# PREDIKCE OBRÁZKU
+# TRÉNOVÁNÍ CHECKPOINTU
 # ==========================================
 
-def predict_image(path):
+def train_checkpoint():
 
-    model = load_model()
+    training_data = load_training_data()
 
-    X = load_image(path).unsqueeze(0).to(DEVICE)
+    if len(training_data) < 2:
 
-    model.eval()
+        print("Nedostatek trénovacích obrázků!")
 
-    with torch.no_grad():
+        return
 
-        output = model(X)
+    dataset = NumberDataset(training_data)
 
-        probabilities = torch.softmax(output, dim=1)
+    # ==================================
+    # ROZDĚLENÍ DAT
+    # ==================================
 
-    results = probabilities[0].cpu().tolist()
-
-    prediction = results.index(max(results))
-
-    print(f"Rozpoznané číslo: {prediction}")
-
-    print(
-        f"Jistota sítě: {max(results) * 100:.2f} %"
+    validation_size = max(
+        1,
+        int(len(dataset) * 0.2)
     )
 
-    return prediction
+    training_size = (
+        len(dataset) - validation_size
+    )
 
+    training_dataset, validation_dataset = random_split(
 
-# ==========================================
-# VYHODNOCENÍ MODELU
-# ==========================================
+        dataset,
+
+        [training_size, validation_size],
+
+        generator=torch.Generator().manual_seed(42)
+
+    )
+
+    print(
+        f"Trénovací obrázky: {training_size}"
+    )
+
+    print(
+        f"Validační obrázky: {validation_size}"
+    )
+
+    # ==================================
+    # DATALOADERS
+    # ==================================
+
+    training_loader = DataLoader(
+
+        training_dataset,
+
+        batch_size=BATCH_SIZE,
+
+        shuffle=True,
+
+        num_workers=0
+
+    )
+
+    validation_loader = DataLoader(
+
+        validation_dataset,
+
+        batch_size=BATCH_SIZE,
+
+        shuffle=False,
+
+        num_workers=0
+
+    )
+
+    # ==================================
+    # MODEL
+    # ==================================
+
+    model, checkpoint = load_model()
+
+    optimizer = optim.Adam(
+
+        model.parameters(),
+
+        lr=LEARNING_RATE,
+
+        weight_decay=WEIGHT_DECAY
+
+    )
+
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+
+        optimizer,
+
+        mode="min",
+
+        factor=0.5,
+
+        patience=2,
+
+        min_lr=0.00001
+
+    )
+
+    start_epoch = 0
+
+    best_loss = float("inf")
+
+    # ==================================
+    # OBNOVENÍ CHECKPOINTU
+    # ==================================
+
+    if checkpoint is not None:
+
+        optimizer.load_state_dict(
+            checkpoint["optimizer_state_dict"]
+        )
+
+        start_epoch = checkpoint.get(
+            "epoch",
+            0
+        )
+
+        best_loss = checkpoint.get(
+            "best_loss",
+            float("inf")
+        )
+
+        if "scheduler_state_dict" in checkpoint:
+
+            scheduler.load_state_dict(
+                checkpoint["scheduler_state_dict"]
+            )
+
+        print(
+            f"Pokračuji od epochy {start_epoch + 1}"
+        )
+
+    # ==================================
+    # START TRAINING
+    # ==================================
+
+    train(
+
+        training_loader=training_loader,
+
+        validation_loader=validation_loader,
+
+        model=model,
+
+        optimizer=optimizer,
+
+        scheduler=scheduler,
+
+        epochs=EPOCHS,
+
+        start_epoch=start_epoch,
+
+        best_loss=best_loss
+
+    )
+
+    print("\n--- TRÉNOVÁNÍ DOKONČENO ---")
+
 
 # ==========================================
 # VYHODNOCENÍ MODELU
@@ -334,42 +667,54 @@ def evaluate_model():
 
     model, checkpoint = load_model()
 
-    paths = glob.glob("vycentrovane_validation/*.png")
+    paths = glob.glob(
+        "eval_data/cislice/*/*.png"
+    )
 
-    if len(paths) == 0:
-        print("Ve složce vycentrovane_test nebyly nalezeny žádné obrázky!")
+    if not paths:
+
+        print("Nebyly nalezeny testovací obrázky!")
+
         return
-
-    correct = 0
-    incorrect = 0
-
-    total_loss = 0
 
     criterion = nn.CrossEntropyLoss()
 
-    print("\n--- TESTOVÁNÍ NEURONOVÉ SÍTĚ ---\n")
+    correct = 0
+
+    incorrect = 0
+
+    total_loss = 0.0
 
     model.eval()
 
-    with torch.no_grad():
+    print("\n--- TESTOVÁNÍ NEURONOVÉ SÍTĚ ---\n")
 
-        progress_bar = tqdm(
+    with torch.inference_mode():
+
+        progress = tqdm(
             paths,
             desc="Testing",
             unit="image"
         )
 
-        for path in progress_bar:
+        for path in progress:
 
             filename = os.path.basename(path)
 
-            # Správná číslice z názvu souboru
-            actual_label = int(filename.split("_")[0])
+            try:
 
-            if actual_label < 0 or actual_label >= OUTPUT_SIZE:
+                actual_label = int(
+                    filename.split("_")[0]
+                )
+
+            except ValueError:
+
                 continue
 
-            # Načtení obrázku
+            if not 0 <= actual_label < OUTPUT_SIZE:
+
+                continue
+
             X = load_image(path).unsqueeze(0).to(DEVICE)
 
             Y = torch.tensor(
@@ -378,19 +723,13 @@ def evaluate_model():
                 device=DEVICE
             )
 
-            # FORWARD
             output = model(X)
 
-            # Loss
             loss = criterion(output, Y)
 
             total_loss += loss.item()
 
-            # Predikce
-            prediction = torch.argmax(
-                output,
-                dim=1
-            ).item()
+            prediction = output.argmax(dim=1).item()
 
             if prediction == actual_label:
 
@@ -406,77 +745,94 @@ def evaluate_model():
                     f"Rozpoznáno: {prediction}"
                 )
 
-            progress_bar.set_postfix(
-                accuracy=f"{correct / (correct + incorrect) * 100:.2f}%"
+            total = correct + incorrect
+
+            progress.set_postfix(
+                accuracy=f"{correct / total * 100:.2f}%"
             )
 
     total = correct + incorrect
 
     if total == 0:
-        print("Nebyly nalezeny žádné platné testovací obrázky!")
+
+        print("Žádné platné testovací obrázky!")
+
         return
 
-    accuracy = (correct / total) * 100
+    accuracy = correct / total * 100
 
     average_loss = total_loss / total
 
     print("\n================================")
+
     print("       VÝSLEDKY TESTOVÁNÍ")
+
     print("================================")
 
-    print(f"Počet testovacích obrázků: {total}")
+    print(f"Testovací obrázky: {total}")
 
-    print(f"Správně rozpoznáno: {correct}")
+    print(f"Správně: {correct}")
 
-    print(f"Špatně rozpoznáno: {incorrect}")
+    print(f"Špatně: {incorrect}")
 
-    print(f"Průměrný Loss: {average_loss:.6f}")
+    print(f"Average Loss: {average_loss:.6f}")
 
     print("--------------------------------")
 
-    print(f"ÚSPĚŠNOST NEURONOVÉ SÍTĚ: {accuracy:.2f} %")
+    print(f"ACCURACY: {accuracy:.2f}%")
 
     print("================================")
 
-def train_checkpoint():
-    
-    training_data = load_training_data()
-#
-    if len(training_data) == 0:
-        print("Nebyly nalezeny žádné trénovací obrázky!")
-        exit()
-#
-    model, checkpoint = load_model()
-#
-    optimizer = optim.Adam(
-        model.parameters(),
-        lr=LEARNING_RATE
-    )
-#
-    start_epoch = 0
-#
-    if checkpoint is not None:
-#
-        optimizer.load_state_dict(
-            checkpoint["optimizer_state_dict"]
-        )
-#
-#
-        print(f"Pokračuji od epochy {start_epoch + 1}")
-#
-    model = train(
-        training_data=training_data,
-        epochs=10,
-        learning_rate=LEARNING_RATE,
-        model=model,
-        optimizer=optimizer,
-        start_epoch=start_epoch
-    )
-#
-    print("\n--- TRÉNOVÁNÍ DOKONČENO ---")
+
 # ==========================================
-# HLAVNÍ PROGRAM - TRÉNOVÁNÍ
+# PREDIKCE OBRÁZKU
+# ==========================================
+
+def predict_image(path):
+
+    model, checkpoint = load_model()
+
+    X = load_image(path).unsqueeze(0).to(DEVICE)
+
+    model.eval()
+
+    with torch.inference_mode():
+
+        output = model(X)
+
+        probabilities = torch.softmax(
+            output,
+            dim=1
+        )
+
+    results = probabilities[0].cpu().tolist()
+
+    prediction = results.index(max(results))
+
+    confidence = max(results) * 100
+
+    print(f"Rozpoznané číslo: {prediction}")
+
+    print(f"Jistota sítě: {confidence:.2f}%")
+
+    return prediction
+
+
+# ==========================================
+# HLAVNÍ PROGRAM
 # ==========================================
 
 if __name__ == "__main__":
-   evaluate_model()
+
+    # True = trénování
+    # False = testování
+
+    TRAIN_MODE = False
+
+    if TRAIN_MODE:
+
+        train_checkpoint()
+
+    else:
+
+        evaluate_model()
