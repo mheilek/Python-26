@@ -37,7 +37,7 @@ MODEL_PATH = "model_animals.pth"
 
 LEARNING_RATE = 0.001
 BATCH_SIZE = 8
-EPOCHS = 1
+EPOCHS = 10
 
 WEIGHT_DECAY = 0.0001
 EARLY_STOPPING_PATIENCE = 10
@@ -428,7 +428,7 @@ def save_model(
 
     }, MODEL_PATH)
 
-    print("Nejlepší checkpoint uložen!")
+    print("Checkpoint uložen!")
 
 
 # ==========================================
@@ -657,46 +657,19 @@ def train():
 
     all_data = load_all_data()
 
-    training_data, validation_data = split_dataset(
-        all_data
-    )
+    training_data, _ = split_dataset(all_data)
 
     training_dataset = AnimalDataset(
         training_data,
         transform=train_transform
     )
 
-    validation_dataset = AnimalDataset(
-        validation_data,
-        transform=None
-    )
-
     training_loader = DataLoader(
-
         training_dataset,
-
         batch_size=BATCH_SIZE,
-
         shuffle=True,
-
         num_workers=0,
-
         pin_memory=(DEVICE.type == "cuda")
-
-    )
-
-    validation_loader = DataLoader(
-
-        validation_dataset,
-
-        batch_size=BATCH_SIZE,
-
-        shuffle=False,
-
-        num_workers=0,
-
-        pin_memory=(DEVICE.type == "cuda")
-
     )
 
     model, checkpoint = load_model()
@@ -704,151 +677,63 @@ def train():
     criterion = nn.CrossEntropyLoss()
 
     optimizer = optim.AdamW(
-
         model.parameters(),
-
         lr=LEARNING_RATE,
-
         weight_decay=WEIGHT_DECAY
-
     )
 
     start_epoch = 0
-
     best_loss = float("inf")
 
-    patience_counter = 0
-
-    # RESUME TRAINING
-
+    # POKRAČOVÁNÍ V TRÉNOVÁNÍ
     if checkpoint is not None:
 
         if "optimizer_state_dict" in checkpoint:
-
             optimizer.load_state_dict(
                 checkpoint["optimizer_state_dict"]
             )
 
         for param_group in optimizer.param_groups:
-
             param_group["lr"] = LEARNING_RATE
 
         start_epoch = checkpoint.get("epoch", 0)
+        best_loss = checkpoint.get("best_loss", float("inf"))
 
-        best_loss = checkpoint.get(
-            "best_loss",
-            float("inf")
-        )
+        print(f"Pokračuji od epochy {start_epoch + 1}")
 
-        print(
-            f"Pokračuji od epochy {start_epoch + 1}"
-        )
+    # TRÉNOVÁNÍ
+    for epoch in range(start_epoch, start_epoch + EPOCHS):
 
-        print(f"Nejlepší Loss: {best_loss:.6f}")
-
-    # ======================================
-    # EPOCHS
-    # ======================================
-
-    for epoch in range(
-        start_epoch,
-        start_epoch + EPOCHS
-    ):
-
-        print("\n========================================")
-
+        print("\\n========================================")
         print(f"EPOCH: {epoch + 1}")
-
         print("========================================")
 
         train_loss, train_accuracy, train_correct, train_incorrect = train_epoch(
-
             model,
-
             training_loader,
-
             optimizer,
-
             criterion,
-
             epoch + 1
-
         )
 
-        print("\n--- TRAINING VÝSLEDKY ---")
-
+        print("\\n--- TRAINING VÝSLEDKY ---")
         print(f"Train Loss: {train_loss:.6f}")
-
         print(f"Správně: {train_correct}")
-
         print(f"Špatně: {train_incorrect}")
-
         print(f"Train Accuracy: {train_accuracy:.2f}%")
 
-        # VALIDATION
-
-        (
-            val_loss,
-            val_accuracy,
-            val_correct,
-            val_incorrect,
-            class_correct,
-            class_total
-        ) = validate(
-
+        # ULOŽENÍ MODELU PO KAŽDÉ EPOCHĚ
+        save_model(
             model,
-
-            validation_loader,
-
-            criterion
-
+            optimizer,
+            epoch + 1,
+            best_loss
         )
 
-        # SAVE BEST MODEL
-
-        if val_loss < best_loss:
-
-            best_loss = val_loss
-
-            patience_counter = 0
-
-            save_model(
-
-                model,
-
-                optimizer,
-
-                epoch + 1,
-
-                best_loss
-
-            )
-
-        else:
-
-            patience_counter += 1
-
-            print(
-                f"Bez zlepšení: {patience_counter}/"
-                f"{EARLY_STOPPING_PATIENCE}"
-            )
-
-        # EARLY STOPPING
-
-        if patience_counter >= EARLY_STOPPING_PATIENCE:
-
-            print("\nEARLY STOPPING!")
-
-            print("Validační Loss se nezlepšuje.")
-
-            break
-
-    print("\n========================================")
-
+    print("\\n========================================")
     print("TRÉNOVÁNÍ DOKONČENO")
-
-    print(f"Nejlepší Validation Loss: {best_loss:.6f}")
-
+    print(f"Poslední dokončená epocha: {start_epoch + EPOCHS}")
+    print("Evaluace nebyla spuštěna.")
     print("========================================")
 
 
@@ -979,19 +864,16 @@ def evaluate_model():
 
 if __name__ == "__main__":
 
-    # "train" = trénování
-    # "validate" = samostatná validace
+    # "train" = pouze trénování (bez evaluace)
+    # "evaluate" = samostatná evaluace uloženého modelu
 
-    MODE = "train"
+    MODE = "evaluate"
 
     if MODE == "train":
-
         train()
 
-    elif MODE == "validate":
-
+    elif MODE == "evaluate":
         evaluate_model()
 
     else:
-
-        print("Neznámý režim!")
+        print("Neznámý režim! Použij 'train' nebo 'evaluate'.")
