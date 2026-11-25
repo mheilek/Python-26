@@ -35,9 +35,9 @@ TRAIN_PATH = "test_set_animals"
 
 VALIDATION_PATH = "animals"
 
-MODEL_PATH = "model_animals_new.pth"
+MODEL_PATH = "model_animals.pth"
 
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 BATCH_SIZE = 16
 EPOCHS = 5
 
@@ -78,10 +78,10 @@ train_transform = transforms.Compose([
     transforms.RandomHorizontalFlip(p=0.5),
 
     transforms.RandomAffine(
-        degrees=10,
-        translate=(0.05, 0.05),
-        scale=(0.90, 1.10),
-        shear=3,
+        degrees=5,
+        translate=(0.03, 0.03),
+        scale=(0.97, 1.03),
+        shear=2,
         fill=1.0
     ),
 
@@ -814,7 +814,7 @@ if __name__ == "__main__":
     # "train" = pouze trénování (bez evaluace)
     # "evaluate" = samostatná evaluace uloženého modelu
 
-    MODE = "train"
+    MODE = "evaluate"
 
     if MODE == "train":
         train()
