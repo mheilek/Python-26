@@ -31,13 +31,15 @@ CLASS_NAMES = [
 
 OUTPUT_SIZE = len(CLASS_NAMES)
 
-DATASET_PATH = "test_set_animals"
+TRAIN_PATH = "test_set_animals"
 
-MODEL_PATH = "model_animals.pth"
+VALIDATION_PATH = "animals"
+
+MODEL_PATH = "model_animals_new.pth"
 
 LEARNING_RATE = 0.001
-BATCH_SIZE = 8
-EPOCHS = 10
+BATCH_SIZE = 16
+EPOCHS = 5
 
 WEIGHT_DECAY = 0.0001
 EARLY_STOPPING_PATIENCE = 10
@@ -88,6 +90,8 @@ train_transform = transforms.Compose([
         contrast=0.15,
         saturation=0.15
     )
+
+    
 
 ])
 
@@ -197,7 +201,7 @@ def load_image(path):
 # NAČTENÍ DATASETU
 # ==========================================
 
-def load_all_data():
+def load_all_data(dataset_path):
 
     data = []
 
@@ -209,27 +213,30 @@ def load_all_data():
         "*.webp"
     ]
 
-    print("\nNačítám dataset...\n")
+    print(f"\nNačítám dataset: {dataset_path}\n")
 
     for label, class_name in enumerate(CLASS_NAMES):
 
-        folder = Path(DATASET_PATH) / class_name
+        folder = Path(dataset_path) / class_name
 
         if not folder.exists():
 
-            print(f"CHYBÍ SLOŽKA: {folder}")
-
-            continue
-
-        class_paths = []
-
-        for extension in extensions:
-
-            class_paths.extend(folder.glob(extension))
-
-            class_paths.extend(
-                folder.glob(extension.upper())
+            raise RuntimeError(
+                f"CHYBÍ SLOŽKA: {folder}"
             )
+
+        class_paths = list({
+        path.resolve()
+        for path in folder.iterdir()
+        if path.is_file()
+        and path.suffix.lower() in [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".bmp",
+        ".webp"
+    ]
+})
 
         valid_paths = []
 
@@ -254,22 +261,10 @@ def load_all_data():
             f"{class_name}: {len(valid_paths)} obrázků"
         )
 
-    if len(data) == 0:
-
-        raise RuntimeError(
-            "Dataset neobsahuje žádné platné obrázky!"
-        )
-
-    for label, class_name in enumerate(CLASS_NAMES):
-
-        count = sum(
-            1 for _, y in data if y == label
-        )
-
-        if count < 2:
+        if len(valid_paths) == 0:
 
             raise RuntimeError(
-                f"Třída {class_name} má méně než 2 obrázky!"
+                f"Třída {class_name} neobsahuje obrázky!"
             )
 
     return data
@@ -279,51 +274,7 @@ def load_all_data():
 # ROZDĚLENÍ DATASETU
 # ==========================================
 
-def split_dataset(data):
 
-    train_data = []
-
-    validation_data = []
-
-    rng = random.Random(SEED)
-
-    for label, class_name in enumerate(CLASS_NAMES):
-
-        class_data = [
-            item for item in data
-            if item[1] == label
-        ]
-
-        rng.shuffle(class_data)
-
-        validation_count = max(
-            1,
-            int(len(class_data) * VALIDATION_RATIO)
-        )
-
-        validation_data.extend(
-            class_data[:validation_count]
-        )
-
-        train_data.extend(
-            class_data[validation_count:]
-        )
-
-        print(
-            f"{class_name}: "
-            f"Train = {len(class_data) - validation_count}, "
-            f"Validation = {validation_count}"
-        )
-
-    rng.shuffle(train_data)
-    rng.shuffle(validation_data)
-
-    print("\n================================")
-    print(f"TRAIN: {len(train_data)}")
-    print(f"VALIDATION: {len(validation_data)}")
-    print("================================\n")
-
-    return train_data, validation_data
 
 
 # ==========================================
@@ -655,9 +606,7 @@ def validate(
 
 def train():
 
-    all_data = load_all_data()
-
-    training_data, _ = split_dataset(all_data)
+    training_data = load_all_data(TRAIN_PATH)
 
     training_dataset = AnimalDataset(
         training_data,
@@ -749,9 +698,7 @@ def evaluate_model():
 
         return
 
-    all_data = load_all_data()
-
-    _, validation_data = split_dataset(all_data)
+    validation_data = load_all_data(VALIDATION_PATH)
 
     model = NeuralNetwork().to(DEVICE)
 
@@ -867,7 +814,7 @@ if __name__ == "__main__":
     # "train" = pouze trénování (bez evaluace)
     # "evaluate" = samostatná evaluace uloženého modelu
 
-    MODE = "evaluate"
+    MODE = "train"
 
     if MODE == "train":
         train()
